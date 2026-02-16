@@ -1,0 +1,15 @@
+# GLOBAL CONFIGURATION
+nb_drones: 1
+
+# HUBS DEFINITION
+# format type: name x y [metadata][optional]
+start_hub: A 7 0
+end_hub: D 10 10
+
+hub: B 5 5 [zone=normal]
+hub: C 8 9 [color=green zone=priority max_drones=2]
+
+# CONNECTIONS
+connection: A-B
+connection: B-C
+connection: C-D
