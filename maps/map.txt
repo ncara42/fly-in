@@ -3,10 +3,10 @@ nb_drones: 1
 
 # HUBS DEFINITION
 # format type: name x y [metadata][optional]
-start_hub: A 7 0
+start_hub: A 7 0 [zone=priority]
 end_hub: D 10 10
 
-hub: B 5 5 [zone=normal]
+hub: B 5 5 [zone=normal color=green]
 hub: C 8 9 [color=green zone=priority max_drones=2]
 
 # CONNECTIONS
