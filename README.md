@@ -49,3 +49,14 @@ make run MAP=maps/map.txt
 - matplotlib ^3.10.8
 - rich ^14.3.2 
 
+---
+
+## Información de Contacto
+
+**GitHub:** [ncara42](https://github.com/ncara42)  
+**42 Network:** [42 Madrid](https://www.42madrid.com/)
+
+---
+
+*Documento para fines de portfolio profesional. Todos los ejercicios fueron completados de forma individual siguiendo la normativa y valores de 42.*
+
