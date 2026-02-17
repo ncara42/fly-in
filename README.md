@@ -3,7 +3,7 @@
 **Estudiante:** ncaravac  
 **Campus:** 42 Madrid, España <br>
 **Período:** Diciembre 2025  
-**Lenguaje:** C  
+**Lenguaje:** Python ^3.10
 
 ---
 
