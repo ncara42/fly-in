@@ -35,6 +35,7 @@ fly-in/
 │   └── map.txt      # Archivo de ejemplo de mapa
 ├── pyproject.toml   # Configuración del proyecto y dependencias
 ├── .gitignore       # Evita subir /__pycache__/ y otros
+├── README.md        # Este archivo
 └── Makefile         # Comandos de automatización
 ```
 
