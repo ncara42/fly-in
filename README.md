@@ -1,5 +1,12 @@
 # Fly-In
 
+**Estudiante:** ncaravac  
+**Campus:** 42 Madrid, España <br>
+**Período:** Diciembre 2025  
+**Lenguaje:** C  
+
+---
+
 > **PROYECTO EN DESARROLLO** - Este proyecto se encuentra actualmente en progreso y no está completo.
 
 ## Descripción
