@@ -1,6 +1,6 @@
-# 🚁 Fly-In - Sistema de Enrutamiento de Drones
+# Fly-In
 
-> ⚠️ **Proyecto en Desarrollo** - Este proyecto se encuentra actualmente en progreso y no está completo.
+> **Proyecto en Desarrollo** - Este proyecto se encuentra actualmente en progreso y no está completo.
 
 ## Descripción
 
@@ -47,12 +47,5 @@ make run MAP=maps/map.txt
 - Python ^3.10
 - colored ^2.3.1
 - matplotlib ^3.10.8
-- rich ^14.3.2
+- rich ^14.3.2 
 
-## Autor
-
-Noel Caravaca
-
-## Licencia
-
-MIT
