@@ -1,6 +1,6 @@
 # Fly-In
 
-> **Proyecto en Desarrollo** - Este proyecto se encuentra actualmente en progreso y no está completo.
+> **PROYECTO EN DESARROLLO** - Este proyecto se encuentra actualmente en progreso y no está completo.
 
 ## Descripción
 
