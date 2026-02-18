@@ -162,9 +162,6 @@ def parse_map(map_path: str):
                     if 'max_drones' in metadata:
                         hub['max_drones'] = int(result['max_drones'])
 
-                # IA??? Tengo mis dudas sobre esto honestamente:
-                # Me lo hizo por un error de tipado con hubs (bloque de arriba)
-                # pero no tengo claro por qué tomó la decision de guardar esta info
                 hubs[path] = hub
 
             # Crear una lista de nodos conectados:
