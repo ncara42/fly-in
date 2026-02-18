@@ -2,7 +2,7 @@
 
 **Estudiante:** ncaravac  
 **Campus:** 42 Madrid, España <br>
-**Período:** Febrero 2025  
+**Período:** Febrero 2026  
 **Lenguaje:** Python ^3.10
 
 ---
@@ -34,6 +34,8 @@ fly-in/
 ├── maps/
 │   └── map.txt      # Archivo de ejemplo de mapa
 ├── pyproject.toml   # Configuración del proyecto y dependencias
+├── .gitignore       # Evita subir /__pycache__/ y otros
+├── README.md        # Este archivo
 └── Makefile         # Comandos de automatización
 ```
 
