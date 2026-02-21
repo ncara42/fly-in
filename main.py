@@ -1,7 +1,7 @@
 import sys
-from typing import TypedDict, Any
+from typing import TypedDict, Any, Generator
 from enum import Enum
-from src.Colors import Color, Palette
+from src.Colors import Color, Palette, COLOR_MAP
 import heapq
 import math
 
@@ -11,8 +11,9 @@ class Dron(TypedDict):
     start_hub: str
     end_hub: str
     current_hub: str
+    restricted: int
     path_idx: int
-    path: list[Any]
+    path: list[str]
 
 
 class Hub(TypedDict):
@@ -20,12 +21,6 @@ class Hub(TypedDict):
     color: None | str
     max_drones: int
     zone: str
-
-
-class Connection(TypedDict):
-    nodes: list[str]
-    max_link_capacity: int
-
 
 class Zones(Enum):
     NORMAL = "normal"
@@ -35,73 +30,114 @@ class Zones(Enum):
 
 
 def heuristic(hubs: dict[str, Hub], node: str, end: str) -> float:
-    # Distancias (euclidiana) entre coordenadas de cada nodo
-    # Parte del algoritmo A*. Superior a BFS: Explora
-    # todos los caminos al mismo tiempo
-    # Superior A*: Calcula el coste de cada ruta
-    # A* Elegirá entre la suma más baja
+    """
+    Calculate the Manhattan distance heuristic between two nodes.
+    
+    Used as part of the A* algorithm to estimate the cost from a node
+    to the goal. Manhattan distance is the sum of absolute differences
+    of their coordinates.
+    
+    Args:
+        hubs: Dictionary mapping hub names to hub information including coordinates.
+        node: Name of the current node.
+        end: Name of the destination node.
+        
+    Returns:
+        The Manhattan distance between the two nodes as a float.
+        
+    Example:
+        >>> heuristic({'A': {'coord': (0,0)}, 'B': {'coord': (3,4)}}, 'A', 'B')
+        7.0
+    """
     (x1, y1) = hubs[node]['coord']
     (x2, y2) = hubs[end]['coord']
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
+    return abs(x2 - x1) + abs(y2 - y1)
 
 def find_path(hubs: dict[str, Hub], adjacencies: dict[str, list[str]],
               start: str, end: str) -> list[Any]:
+    """
+    Find the shortest path between two hubs using the A* algorithm.
+    
+    Implements A* pathfinding with Manhattan distance heuristic. Takes into
+    account different zone costs:
+    - Normal zones: cost 1 turn
+    - Restricted zones: cost 2 turns
+    - Priority zones: cost 0.5 turns (preferred)
+    - Blocked zones: avoided completely
+    
+    Args:
+        hubs: Dictionary of hub names to hub information.
+        adjacencies: Graph structure mapping each hub to its connected neighbors.
+        start: Starting hub name.
+        end: Destination hub name.
+        
+    Returns:
+        List of hub names representing the optimal path from start to end.
+        Returns empty list if no path exists.
+        
+    Example:
+        >>> find_path(hubs, adjacencies, 'start', 'goal')
+        ['start', 'hub1', 'hub2', 'goal']
+    """
 
-    # Como Python siempre mira el primer elemento de una tupla
-    # para decidir cual es menor, uso 0 al principio
     queue: list[tuple[float, str]] = [(0.0, start)]
 
-    # came_from va a guardar el camino que se va a tomar desde el final
-    # hasta el inicio. Luego se le dará la vuelta
     came_from: dict[str, str] = {}
-    g_score: dict[str, float] = {node: float('inf') for node in hubs}
-    g_score[start] = 0.0
+    cost_score: dict[str, float] = {node: float('inf') for node in hubs}
+    cost_score[start] = 0.0
 
     while queue:
-        # Uso _ porque no usaré esta variable, solo
-        # para desempaquetar el valor que me interesa en
-        # current, que es justo la que uso
-        # heapq.heappop saca el más pequeño de la lista
-        # ej. queue = [(8.07, 'B'), (4.23, 'C')]
-        # Resultado:
-        # _ valdrá 4.23
-        # current valdrá 'C'
-        _, current = heapq.heappop(queue)
+        _, current_hub = heapq.heappop(queue)
 
-
-        # Ahora suponiendo que current vale C y end vale D
-        # tengo que comprobar si C es el final. Cuando sea
-        # el final, este bloque se ejecutará
-        # Este bloque da la vuelta a came_from, por lo que
-        # obtengo el path de inicio a fin
-        if current == end:
+        if current_hub == end:
             path: list[str] = []
-            while current in came_from:
-                path.append(current)
-                current = came_from[current]
+            while current_hub in came_from:
+                path.append(current_hub)
+                current_hub = came_from[current_hub]
             path.append(start)
             return path[::-1]
 
-        # Aquí me quedo. Seguir comentando aquí
-        for neighbor in adjacencies.get(current, []):
-            if hubs[neighbor]['zone'] == Zones.BLOCKED.value:
-                continue
+        for neighbor in adjacencies.get(current_hub, []):
+            
             if hubs[neighbor]['zone'] == Zones.BLOCKED.value:
                 continue
 
-            tentative_g = g_score[current] + 1
+            turn_cost = 1
+            if hubs[neighbor]['zone'] == Zones.RESTRICTED.value:
+                turn_cost = 2
+            elif hubs[neighbor]['zone'] == Zones.PRIORITY.value:
+                turn_cost = 0.5
 
-            if tentative_g < g_score[neighbor]:
-                came_from[neighbor] = current
-                g_score[neighbor] = tentative_g
-                f_score = tentative_g + heuristic(hubs, neighbor, end)
-                heapq.heappush(queue, (f_score, neighbor))
+            new_cost = cost_score[current_hub] + turn_cost
+
+            if new_cost < cost_score[neighbor]:
+                came_from[neighbor] = current_hub
+                cost_score[neighbor] = new_cost
+
+                estimated_cost = new_cost + heuristic(hubs, neighbor, end)
+                heapq.heappush(queue, (estimated_cost, neighbor))
 
     return []
 
 
 def parse_metadata(metadata: str) -> dict[str, str]:
+    """
+    Parse metadata string into a dictionary of key-value pairs.
+    
+    Metadata format: "key1=value1 key2=value2 ..."
+    Used to extract hub properties like zone type, color, and capacities.
+    
+    Args:
+        metadata: Space-separated string of key=value pairs.
+        
+    Returns:
+        Dictionary mapping metadata keys to their values.
+        
+    Example:
+        >>> parse_metadata("zone=restricted color=red max_drones=2")
+        {'zone': 'restricted', 'color': 'red', 'max_drones': '2'}
+    """
     result: dict[str, str] = {}
     for item in metadata.split():
         if '=' in item:
@@ -110,116 +146,203 @@ def parse_metadata(metadata: str) -> dict[str, str]:
     return result
 
 
-def generate_drones(nb_drones: int) -> dict[str, Dron]:
+def generate_drones(nb_drones: int) -> Generator:
+    """
+    Generate initialized drone objects.
+    
+    Creates drone dictionaries with default values. Each drone is assigned
+    a unique ID starting from D1.
+    
+    Args:
+        nb_drones: Number of drones to generate.
+        
+    Yields:
+        Dictionary representing a drone with initialized fields:
+        - id: Unique drone identifier (D1, D2, ...)
+        - start_hub: Starting hub name (empty initially)
+        - end_hub: Destination hub name (empty initially)
+        - current_hub: Current position (empty initially)
+        - restricted: Turns remaining in restricted zone transit
+        - priority: Priority level for movement ordering
+        - path_idx: Current position in the path
+        - path: List of hubs forming the route
+    """
 
     for i in range(nb_drones):
         yield {
-            'id': f"G0{i}",
+            'id': f"D{i + 1}",
             'start_hub': "",
             'end_hub': "",
             'current_hub': "",
+            'restricted': 0,
+            'priority': 0,
             'path_idx': 0,
             'path': []
         }
 
-def simulate_turns(drones: Dron, hubs: Hub):
-    ### Me quedo aqui
-    return 
+def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
+                   hubs: dict[str, Hub], link_capacity: dict[tuple[str, str], int],
+                   max_turns: int = 5) -> None:
+    
+    for t in range(max_turns):
+        occupancy = {}
+        
+        for d in drones.copy():
+            actual_hub = d['path'][d['path_idx']]
+            final_hub = d['end_hub']
+
+            if actual_hub == final_hub:
+                drones.remove(d)
+                continue 
+
+            next_hub = d['path'][d['path_idx'] + 1]
+            current_occupancy = occupancy.get(next_hub, 0)
+
+            # Bloque de restricted 201-209
+            if d['restricted'] > 0:
+                d['restricted'] -= 1
+                continue
+
+            if hubs[actual_hub]['zone'] is not Zones.RESTRICTED.value \
+            and hubs[next_hub]['zone'] == Zones.RESTRICTED.value and next_hub != final_hub:
+                d['restricted'] = 2
+                continue
+
+            if current_occupancy < hubs[next_hub]['max_drones']:
+                text_color = COLOR_MAP.get(hubs[next_hub]['color']) 
+                if text_color is None:
+                    text_color = Color.RESET
+                occupancy[next_hub] = current_occupancy + 1
+                d['path_idx'] += 1
+                print(f"{d['id']}-{text_color}{next_hub}{Color.RESET}", end=" ")
+
+        print()
+
+        if not drones:
+            break
+
+    print(f"Number of turns: {t + 1}")
 
 
 def parse_map(map_path: str):
+    """
+    Parse a map file and initialize the drone simulation.
+    
+    Reads and parses the map file format containing:
+    - Number of drones (nb_drones)
+    - Hub definitions (start_hub, end_hub, hub) with coordinates and metadata
+    - Connections between hubs with optional capacity constraints
+    - Metadata includes: zone type, color, max_drones, max_link_capacity
+    
+    After parsing, initializes all drones with the optimal path and starts
+    the simulation.
+    
+    Args:
+        map_path: Path to the map file to parse.
+        
+    Returns:
+        None. Initiates simulation after successful parsing.
+        
+    Raises:
+        FileNotFoundError: If map file doesn't exist.
+        ValueError: If map format is invalid or missing required fields.
+        
+    """
 
-    start_name: str = ""    
+    start_name: str = ""
     end_name: str = ""
     hubs: dict[str, Hub] = {}
     adjacencies: dict[str, list[str]] = {}
+    link_capacity: dict[tuple[str, str], int] = {}
     nb_drones: int = 0  # type: ignore
     drones: list[dict[str, Any]]
+    try:
+        with open(map_path, 'r') as file:
+            print(f"Reading {map_path}")
+            # Leer linea por linea del doc.
+            for line in file:
+                line: str = line.strip()
 
-    connection: Connection = {
-        'connections': [],
-        'mlc': 0
-    }
+                # Ignorar lineas vacías y comentarios
+                if not line or line.startswith('#'):
+                    continue
 
-    with open(map_path, 'r') as file:
-        print(f"Reading {map_path}")
-
-        # Leer linea por linea del doc.
-        for line in file:
-            line: str = line.strip()
-
-            # Ignorar lineas vacías y comentarios
-            if not line or line.startswith('#'):
-                continue
-
-            # Identificar variable 'nb_drones'
-            if line.startswith('nb_drones'):
-                nb_drones: int = int(line.split(':')[1])  # type: ignore
-                dron: list[Dron] = list(generate_drones(nb_drones))
+                # Identificar variable 'nb_drones'
+                if line.startswith('nb_drones'):
+                    nb_drones: int = int(line.split(':')[1])  # type: ignore
+                    dron: list[Dron] = list(generate_drones(nb_drones))
 
 
-            # Identificar variable 'start_hub, end_hub', 'hub': Coordenadas
-            elif line.startswith(('hub', 'start_hub', 'end_hub')):
-                parts: list[str] = line.split(':')
-                x_hub: str = parts[0]
-                data: list[str] = parts[1].split()
+                # Identificar variable 'start_hub, end_hub', 'hub': Coordenadas
+                elif line.startswith(('hub', 'start_hub', 'end_hub')):
+                    parts: list[str] = line.split(':')
+                    x_hub: str = parts[0]
+                    data: list[str] = parts[1].split()
 
-                # Guardar path y coordenadas
-                path: str = data[0]
-                x: int = int(data[1])
-                y: int = int(data[2])
+                    # Guardar path y coordenadas
+                    path: str = data[0]
+                    x: int = int(data[1])
+                    y: int = int(data[2])
 
-                # Guardar el nombre del start/end hub
-                if x_hub == 'start_hub':
-                    start_name = path
-                elif x_hub == 'end_hub':
-                    end_name = path
-                # Crear dict con info del nodo
-                hub: Hub = {
-                    'coord': (x, y),
-                    'color': None,
-                    'max_drones': 1,
-                    'zone': 'normal'
-                }
+                    # Guardar el nombre del start/end hub
+                    if x_hub == 'start_hub':
+                        start_name = path
+                    elif x_hub == 'end_hub':
+                        end_name = path
+                    # Crear dict con info del nodo
+                    hub: Hub = {
+                        'coord': (x, y),
+                        'color': None,
+                        'max_drones': 1,
+                        'zone': 'normal'
+                    }
 
-                # Identificar metadatos y guardarlos en el dict nodo
-                if '[' in line:
-                    metadata = line.split('[')[1].split(']')[0]
-                    result = parse_metadata(metadata)
+                    # Identificar metadatos y guardarlos en el dict nodo
+                    if '[' in line:
+                        metadata = line.split('[')[1].split(']')[0]
+                        result = parse_metadata(metadata)
 
-                    if 'color' in result:
-                        for color in Palette:
-                            if color.value in result['color']:
-                                hub['color'] = result['color']
+                        if 'color' in result:
+                            for color in Palette:
+                                if color.value in result['color']:
+                                    hub['color'] = result['color']
 
-                    if 'zone' in result:
-                        for zone in Zones:
-                            if zone.value in result['zone']:
-                                hub['zone'] = result['zone']
+                        if 'zone' in result:
+                            for zone in Zones:
+                                if zone.value in result['zone']:
+                                    hub['zone'] = result['zone']
 
-                    if 'max_drones' in result:
-                        hub['max_drones'] = int(result['max_drones'])
+                        if 'max_drones' in result:
+                            hub['max_drones'] = int(result['max_drones'])
 
-                hubs[path] = hub
+                    hubs[path] = hub
 
-            # Crear una lista de nodos conectados:
-            # Dónde pueden acceder (por eso usamos .append()!)
-            elif line.startswith('connection'):
-                parts: list[str] = line.split(':')
-                data: list[str] = parts[1].split()
-                nodes: list[str] = data[0].split('-')
+                elif line.startswith('connection'):
+                    parts: list[str] = line.split(':')
+                    data: list[str] = parts[1].split()
+                    nodes: list[str] = data[0].split('-')
 
-                u: str = nodes[0]
-                v: str = nodes[1]
+                    a: str = nodes[0].strip()
+                    b: str = nodes[1].strip()
 
-                if u not in adjacencies:
-                    adjacencies[u] = []
-                if v not in adjacencies:
-                    adjacencies[v] = []
-                adjacencies[u].append(v)
-                adjacencies[v].append(u)
+                    max_capacity = float('inf')
+                    if '[' in line:
+                        metadata = line.split('[')[1].split(']')[0]
+                        result = parse_metadata(metadata)
+                        if 'max_link_capacity' in result:
+                            max_capacity = int(result['max_link_capacity'])
 
-        if not start_name and not end_name:
+                    link_key = tuple(sorted([a, b]))
+                    link_capacity[link_key] = max_capacity
+
+                    if a not in adjacencies:
+                        adjacencies[a] = []
+                    if b not in adjacencies:
+                        adjacencies[b] = []
+                    adjacencies[a].append(b)
+                    adjacencies[b].append(a)
+
+        if not start_name or not end_name:
             return
 
         path_solved = find_path(hubs, adjacencies, start_name, end_name)
@@ -229,14 +352,37 @@ def parse_map(map_path: str):
             d['current_hub'] = start_name
             d['path_idx'] = 0
             d['path'] = list(path_solved)
+        print(path_solved)
 
-        simulate_turns(dron, hubs)
+        simulate_turns(dron, adjacencies, hubs, link_capacity)
 
-
-        print(*dron, sep="\n")
-
+    except Exception as e:
+        print(f"Error: {e}")
 
 def main() -> None:
+    """
+    Main entry point for the drone routing simulator.
+    
+    Validates command-line arguments and initiates the map parsing
+    and simulation process.
+    
+    Command-line usage:
+        python main.py <map_file_path>
+        
+    Args:
+        None. Reads from sys.argv.
+        
+    Returns:
+        None.
+        
+    Exits:
+        1 if map file argument is missing.
+        
+    Example:
+        $ python main.py maps/01_maze_nightmare.txt
+        Loading map: maps/01_maze_nightmare.txt
+        ...
+    """
     if len(sys.argv) < 2:
         print(f"{Color.ERROR}Error{Color.RESET}: Missing map file")
         print("Execute: make run MAP=<path>")
