@@ -317,7 +317,7 @@ D1-goal D2-goal
   - Correctly handle movement costs associated with zone types.
   - Respect all capacity constraints (zone and connection limits).
   - Avoid all conflicts (e.g., exceeding zone or connection capacity).
-
+****
 Secondary (optional) evaluation metrics may include:
 
 - The number of drones moved per turn (efficiency of path allocation).

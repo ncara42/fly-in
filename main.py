@@ -105,7 +105,7 @@ def find_path(hubs: dict[str, Hub], adjacencies: dict[str, list[str]],
 
             turn_cost = 1
             if hubs[neighbor]['zone'] == Zones.RESTRICTED.value:
-                turn_cost = 2
+                turn_cost = 5
             elif hubs[neighbor]['zone'] == Zones.PRIORITY.value:
                 turn_cost = 0.5
 
@@ -185,11 +185,13 @@ def search_color(color: str) -> str:
 
 def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
                    hubs: dict[str, Hub], link_capacity: dict[tuple[str, str], int],
-                   max_turns: int = 5000) -> None:
-    
+                   max_turns: int = 100) -> None:
+    print(link_capacity)
+    print(adjacencies)
     
     for t in range(max_turns):
         occupancy = {}
+        link_usage = {}
         movements = []
         drones = [d for d in drones if d['path'][d['path_idx']] != d['end_hub']]
         if not drones:
@@ -212,12 +214,11 @@ def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
             text_color_next_hub = COLOR_MAP.get(hubs[next_hub]['color'], Color.RESET)
             current_occupancy = occupancy.get(next_hub, 0)
 
-
-            # Si el sigueinte está completo,no avanazo
+            # Si el siguiente está completo, no avanzo
             if current_occupancy >= hubs[next_hub]['max_drones']:
                 continue
             
-            # Avanzo
+            # Avanzo si el siguiente no está completo
             occupancy[next_hub] = current_occupancy + 1
             actual_hub = d['path'][d['path_idx']]
             d['path_idx'] += 1
@@ -227,7 +228,7 @@ def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
                 movements.append(f"{d['id']}-{text_color_actual_hub}{actual_hub}-{text_color_next_hub}{next_hub}{Color.RESET}")
             else:
                 movements.append(f"{d['id']}-{text_color_next_hub}{next_hub}{Color.RESET}")
-                            
+
         if movements:
             print(' '.join(movements))
 
@@ -332,14 +333,14 @@ def parse_map(map_path: str):
                     a: str = nodes[0].strip()
                     b: str = nodes[1].strip()
 
-                    max_capacity = float('inf')
+                    max_capacity = 1
                     if '[' in line:
                         metadata = line.split('[')[1].split(']')[0]
                         result = parse_metadata(metadata)
                         if 'max_link_capacity' in result:
                             max_capacity = int(result['max_link_capacity'])
 
-                    link_key = tuple(sorted([a, b]))
+                    link_key = tuple([a, b])
                     link_capacity[link_key] = max_capacity
 
                     if a not in adjacencies:
