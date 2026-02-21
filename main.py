@@ -180,49 +180,56 @@ def generate_drones(nb_drones: int) -> Generator:
             'path': []
         }
 
+def search_color(color: str) -> str:
+    return COLOR_MAP.get(str, 0)
+
 def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
                    hubs: dict[str, Hub], link_capacity: dict[tuple[str, str], int],
-                   max_turns: int = 5) -> None:
+                   max_turns: int = 5000) -> None:
+    
     
     for t in range(max_turns):
         occupancy = {}
-        
-        for d in drones.copy():
+        movements = []
+        drones = [d for d in drones if d['path'][d['path_idx']] != d['end_hub']]
+        if not drones:
+            print(f"Turns: {t}")
+            break
+
+        # Bucle de movimientos
+        for d in drones:
             actual_hub = d['path'][d['path_idx']]
             final_hub = d['end_hub']
+            text_color_actual_hub = COLOR_MAP.get(hubs[actual_hub]['color'], Color.RESET)
 
-            if actual_hub == final_hub:
-                drones.remove(d)
-                continue 
-
-            next_hub = d['path'][d['path_idx'] + 1]
-            current_occupancy = occupancy.get(next_hub, 0)
-
-            # Bloque de restricted 201-209
+            # Si estoy quieto, imprimo mi posicion, y paso
             if d['restricted'] > 0:
+                movements.append(f"{d['id']}-{text_color_actual_hub}{actual_hub}{Color.RESET}")
                 d['restricted'] -= 1
                 continue
 
-            if hubs[actual_hub]['zone'] is not Zones.RESTRICTED.value \
-            and hubs[next_hub]['zone'] == Zones.RESTRICTED.value and next_hub != final_hub:
-                d['restricted'] = 2
+            next_hub = d['path'][d['path_idx'] + 1]
+            text_color_next_hub = COLOR_MAP.get(hubs[next_hub]['color'], Color.RESET)
+            current_occupancy = occupancy.get(next_hub, 0)
+
+
+            # Si el sigueinte está completo,no avanazo
+            if current_occupancy >= hubs[next_hub]['max_drones']:
                 continue
+            
+            # Avanzo
+            occupancy[next_hub] = current_occupancy + 1
+            actual_hub = d['path'][d['path_idx']]
+            d['path_idx'] += 1
 
-            if current_occupancy < hubs[next_hub]['max_drones']:
-                text_color = COLOR_MAP.get(hubs[next_hub]['color']) 
-                if text_color is None:
-                    text_color = Color.RESET
-                occupancy[next_hub] = current_occupancy + 1
-                d['path_idx'] += 1
-                print(f"{d['id']}-{text_color}{next_hub}{Color.RESET}", end=" ")
-
-        print()
-
-        if not drones:
-            break
-
-    print(f"Number of turns: {t + 1}")
-
+            if hubs[next_hub]['zone'] == Zones.RESTRICTED.value:
+                d['restricted'] = 1
+                movements.append(f"{d['id']}-{text_color_actual_hub}{actual_hub}-{text_color_next_hub}{next_hub}{Color.RESET}")
+            else:
+                movements.append(f"{d['id']}-{text_color_next_hub}{next_hub}{Color.RESET}")
+                            
+        if movements:
+            print(' '.join(movements))
 
 def parse_map(map_path: str):
     """
@@ -352,7 +359,6 @@ def parse_map(map_path: str):
             d['current_hub'] = start_name
             d['path_idx'] = 0
             d['path'] = list(path_solved)
-        print(path_solved)
 
         simulate_turns(dron, adjacencies, hubs, link_capacity)
 
