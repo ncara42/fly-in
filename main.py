@@ -1,12 +1,26 @@
+"""
+[Fly-in]
+
+This program simulates the routing of multiple drones through a network of hubs and connections.
+It enforces zone types (normal, blocked, restricted, priority), zone and link capacities, and movement costs.
+The simulation uses A* pathfinding to determine optimal routes, and outputs each turn's drone movements,
+including colored terminal feedback for visual clarity. The parser reads map files with flexible metadata,
+and the simulation is designed to be efficient, robust, and extensible for complex scenarios.
+"""
+
 import sys
 from typing import TypedDict, Any, Generator
 from enum import Enum
 from src.Colors import Color, Palette, COLOR_MAP
 import heapq
-import math
 
 
 class Dron(TypedDict):
+    """
+    TypedDict representing the state and routing information for a drone.
+    Includes unique ID, start/end hubs, current position, restricted turn counter,
+    path index, and the computed path for simulation.
+    """
     id: str
     start_hub: str
     end_hub: str
@@ -17,12 +31,24 @@ class Dron(TypedDict):
 
 
 class Hub(TypedDict):
+    """
+    TypedDict for hub properties including coordinates, color, maximum drone capacity,
+    and zone type. Used to represent each node in the drone routing network.
+    """
     coord: tuple[int, int]
     color: None | str
     max_drones: int
     zone: str
 
+
 class Zones(Enum):
+    """
+    Enum for zone types in the network:
+    - NORMAL: Standard zone, cost 1 turn.
+    - BLOCKED: Inaccessible zone, cannot be entered.
+    - RESTRICTED: Dangerous zone, cost 2 turns.
+    - PRIORITY: Preferred zone, cost 1 turn, prioritized in pathfinding.
+    """
     NORMAL = "normal"
     BLOCKED = "blocked"
     RESTRICTED = "restricted"
@@ -31,54 +57,41 @@ class Zones(Enum):
 
 def heuristic(hubs: dict[str, Hub], node: str, end: str) -> float:
     """
-    Calculate the Manhattan distance heuristic between two nodes.
-    
-    Used as part of the A* algorithm to estimate the cost from a node
-    to the goal. Manhattan distance is the sum of absolute differences
-    of their coordinates.
-    
+    Calculate the Manhattan distance between two hubs for A* pathfinding.
+    This heuristic estimates the cost from a node to the goal, guiding the search
+    towards the shortest path. Manhattan distance is the sum of absolute differences
+    of the coordinates.
+
     Args:
         hubs: Dictionary mapping hub names to hub information including coordinates.
         node: Name of the current node.
         end: Name of the destination node.
-        
+
     Returns:
         The Manhattan distance between the two nodes as a float.
-        
-    Example:
-        >>> heuristic({'A': {'coord': (0,0)}, 'B': {'coord': (3,4)}}, 'A', 'B')
-        7.0
     """
     (x1, y1) = hubs[node]['coord']
     (x2, y2) = hubs[end]['coord']
 
     return abs(x2 - x1) + abs(y2 - y1)
 
+
 def find_path(hubs: dict[str, Hub], adjacencies: dict[str, list[str]],
               start: str, end: str) -> list[Any]:
     """
-    Find the shortest path between two hubs using the A* algorithm.
-    
-    Implements A* pathfinding with Manhattan distance heuristic. Takes into
-    account different zone costs:
-    - Normal zones: cost 1 turn
-    - Restricted zones: cost 2 turns
-    - Priority zones: cost 0.5 turns (preferred)
-    - Blocked zones: avoided completely
-    
+    Find the optimal path between two hubs using the A* algorithm.
+    Considers zone types and movement costs, avoids blocked zones, and prioritizes
+    preferred zones. Returns the sequence of hubs forming the shortest valid route.
+
     Args:
         hubs: Dictionary of hub names to hub information.
         adjacencies: Graph structure mapping each hub to its connected neighbors.
         start: Starting hub name.
         end: Destination hub name.
-        
+
     Returns:
         List of hub names representing the optimal path from start to end.
         Returns empty list if no path exists.
-        
-    Example:
-        >>> find_path(hubs, adjacencies, 'start', 'goal')
-        ['start', 'hub1', 'hub2', 'goal']
     """
 
     queue: list[tuple[float, str]] = [(0.0, start)]
@@ -99,7 +112,7 @@ def find_path(hubs: dict[str, Hub], adjacencies: dict[str, list[str]],
             return path[::-1]
 
         for neighbor in adjacencies.get(current_hub, []):
-            
+
             if hubs[neighbor]['zone'] == Zones.BLOCKED.value:
                 continue
 
@@ -123,20 +136,15 @@ def find_path(hubs: dict[str, Hub], adjacencies: dict[str, list[str]],
 
 def parse_metadata(metadata: str) -> dict[str, str]:
     """
-    Parse metadata string into a dictionary of key-value pairs.
-    
-    Metadata format: "key1=value1 key2=value2 ..."
-    Used to extract hub properties like zone type, color, and capacities.
-    
+    Parse a metadata string into a dictionary of key-value pairs.
+    Metadata format: "key1=value1 key2=value2 ...". Used to extract hub properties
+    like zone type, color, and capacities from map files.
+
     Args:
         metadata: Space-separated string of key=value pairs.
-        
+
     Returns:
         Dictionary mapping metadata keys to their values.
-        
-    Example:
-        >>> parse_metadata("zone=restricted color=red max_drones=2")
-        {'zone': 'restricted', 'color': 'red', 'max_drones': '2'}
     """
     result: dict[str, str] = {}
     for item in metadata.split():
@@ -148,24 +156,14 @@ def parse_metadata(metadata: str) -> dict[str, str]:
 
 def generate_drones(nb_drones: int) -> Generator:
     """
-    Generate initialized drone objects.
-    
-    Creates drone dictionaries with default values. Each drone is assigned
-    a unique ID starting from D1.
-    
+    Generator for initialized drone objects with default fields.
+    Each drone is assigned a unique ID and default state for simulation.
+
     Args:
         nb_drones: Number of drones to generate.
-        
+
     Yields:
-        Dictionary representing a drone with initialized fields:
-        - id: Unique drone identifier (D1, D2, ...)
-        - start_hub: Starting hub name (empty initially)
-        - end_hub: Destination hub name (empty initially)
-        - current_hub: Current position (empty initially)
-        - restricted: Turns remaining in restricted zone transit
-        - priority: Priority level for movement ordering
-        - path_idx: Current position in the path
-        - path: List of hubs forming the route
+        Dictionary representing a drone with initialized fields.
     """
 
     for i in range(nb_drones):
@@ -180,14 +178,26 @@ def generate_drones(nb_drones: int) -> Generator:
             'path': []
         }
 
-def search_color(color: str) -> str:
-    return COLOR_MAP.get(str, 0)
 
 def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
                    hubs: dict[str, Hub], link_capacity: dict[tuple[str, str], int],
                    max_turns: int = 100) -> None:
 
-    
+    """
+    Simulate drone movements turn by turn, enforcing all zone and link constraints.
+    Handles occupancy, restricted zones, link capacities, and outputs each turn's
+    movements in the required format with color feedback.
+
+    Args:
+        drones: List of drone objects.
+        adjacencies: Graph structure of hub connections.
+        hubs: Dictionary of hub properties.
+        link_capacity: Dictionary of connection capacities.
+        max_turns: Maximum number of simulation turns.
+
+    Returns:
+        None. Prints simulation output per turn.
+    """
     for t in range(max_turns):
         occupancy = {}
         link_usage = {}
@@ -200,7 +210,6 @@ def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
         # Bucle de movimientos
         for d in drones:
             actual_hub = d['path'][d['path_idx']]
-            final_hub = d['end_hub']
             text_color_actual_hub = COLOR_MAP.get(hubs[actual_hub]['color'], Color.RESET)
 
             # Si estoy quieto, imprimo mi posicion, y paso
@@ -216,12 +225,12 @@ def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
             # Si el siguiente está completo, no avanzo
             if current_occupancy >= hubs[next_hub]['max_drones']:
                 continue
-            
+
             actual_next_hub: tuple(str, str) = (actual_hub, next_hub)
             if actual_next_hub not in link_usage:
                 link_usage[actual_next_hub] = 0
             link_usage[actual_next_hub] += 1
-            
+
             # Avanzo si el siguiente no está completo
             if link_usage[actual_next_hub] <= link_capacity[actual_next_hub]:
                 occupancy[next_hub] = current_occupancy + 1
@@ -236,29 +245,17 @@ def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
         if movements:
             print(' '.join(movements))
 
+
 def parse_map(map_path: str):
     """
-    Parse a map file and initialize the drone simulation.
-    
-    Reads and parses the map file format containing:
-    - Number of drones (nb_drones)
-    - Hub definitions (start_hub, end_hub, hub) with coordinates and metadata
-    - Connections between hubs with optional capacity constraints
-    - Metadata includes: zone type, color, max_drones, max_link_capacity
-    
-    After parsing, initializes all drones with the optimal path and starts
-    the simulation.
-    
+    Parse map file, build hubs and connections, initialize drones, and start simulation.
+    Handles all parsing rules, metadata extraction, and error handling for robust operation.
+
     Args:
         map_path: Path to the map file to parse.
-        
+
     Returns:
         None. Initiates simulation after successful parsing.
-        
-    Raises:
-        FileNotFoundError: If map file doesn't exist.
-        ValueError: If map format is invalid or missing required fields.
-        
     """
 
     start_name: str = ""
@@ -267,7 +264,6 @@ def parse_map(map_path: str):
     adjacencies: dict[str, list[str]] = {}
     link_capacity: dict[tuple[str, str], int] = {}
     nb_drones: int = 0  # type: ignore
-    drones: list[dict[str, Any]]
     try:
         with open(map_path, 'r') as file:
             print(f"Reading {map_path}")
@@ -283,7 +279,6 @@ def parse_map(map_path: str):
                 if line.startswith('nb_drones'):
                     nb_drones: int = int(line.split(':')[1])  # type: ignore
                     dron: list[Dron] = list(generate_drones(nb_drones))
-
 
                 # Identificar variable 'start_hub, end_hub', 'hub': Coordenadas
                 elif line.startswith(('hub', 'start_hub', 'end_hub')):
@@ -370,29 +365,18 @@ def parse_map(map_path: str):
     except Exception as e:
         print(f"Error: {e}")
 
+
 def main() -> None:
     """
-    Main entry point for the drone routing simulator.
-    
-    Validates command-line arguments and initiates the map parsing
-    and simulation process.
-    
-    Command-line usage:
-        python main.py <map_file_path>
-        
+    Entry point for the drone routing simulator.
+    Validates command-line arguments, loads the map file, and starts the simulation.
+    Prints error and usage instructions if arguments are missing.
+
     Args:
         None. Reads from sys.argv.
-        
+
     Returns:
-        None.
-        
-    Exits:
-        1 if map file argument is missing.
-        
-    Example:
-        $ python main.py maps/01_maze_nightmare.txt
-        Loading map: maps/01_maze_nightmare.txt
-        ...
+        None. Exits on error.
     """
     if len(sys.argv) < 2:
         print(f"{Color.ERROR}Error{Color.RESET}: Missing map file")
