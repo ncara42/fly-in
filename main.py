@@ -186,8 +186,7 @@ def search_color(color: str) -> str:
 def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
                    hubs: dict[str, Hub], link_capacity: dict[tuple[str, str], int],
                    max_turns: int = 100) -> None:
-    print(link_capacity)
-    print(adjacencies)
+
     
     for t in range(max_turns):
         occupancy = {}
@@ -218,10 +217,15 @@ def simulate_turns(drones: list[Dron], adjacencies: dict[str, list[str]],
             if current_occupancy >= hubs[next_hub]['max_drones']:
                 continue
             
+            actual_next_hub: tuple(str, str) = (actual_hub, next_hub)
+            if actual_next_hub not in link_usage:
+                link_usage[actual_next_hub] = 0
+            link_usage[actual_next_hub] += 1
+            
             # Avanzo si el siguiente no está completo
-            occupancy[next_hub] = current_occupancy + 1
-            actual_hub = d['path'][d['path_idx']]
-            d['path_idx'] += 1
+            if link_usage[actual_next_hub] <= link_capacity[actual_next_hub]:
+                occupancy[next_hub] = current_occupancy + 1
+                d['path_idx'] += 1
 
             if hubs[next_hub]['zone'] == Zones.RESTRICTED.value:
                 d['restricted'] = 1
