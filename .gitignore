@@ -1,0 +1,8 @@
+**/__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+pyproject.toml
+poetry.lock
+maps/
+context.md
