@@ -1,6 +1,6 @@
 import difflib
 from dataclasses import dataclass
-from domain.entities import Zones
+from .zones import Zones
 from utils import Palette
 
 

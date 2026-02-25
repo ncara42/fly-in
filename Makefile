@@ -38,5 +38,5 @@ lint-strict:
 	@echo "\033[0;31mVirtual environment and cache removed\033[0m"
 	@poetry run flake8 . --exclude=.venv,venv,__pycache__,.mypy_cache
 	@poetry run mypy . \
-		--strict 
+		--strict \
 		--explicit-package-bases
