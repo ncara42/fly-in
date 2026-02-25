@@ -9,7 +9,7 @@
 
 ---
 
-## Descripción
+## Description
 Fly-in is an object-oriented drone routing simulation system. It efficiently routes a fleet of drones from a central base to a destination, navigating a dynamic network of zones under strict movement and capacity constraints. The project is written in Python 3.10+, fully typed, and complies with flake8 and mypy standards.
 
 ## Instructions
