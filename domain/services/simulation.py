@@ -68,11 +68,6 @@ class SimulationService:
 
                 # If I am stationary, print my position and skip
                 if d.restricted > 0:
-                    movements.append(
-                        f"{d.id}-{text_color_actual_hub}"
-                        f"{actual_hub}{Color.RESET}"
-                    )
-
                     d.restricted -= 1
                     continue
 
